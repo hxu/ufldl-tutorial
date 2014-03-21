@@ -90,7 +90,7 @@ def sigmoid_p(x):
     return np.multiply(x, (1 - x))
 
 
-def autoencoder_single_pass(X, W1, W2, b1, b2, n_hidden, n_input, lmbda=0, sparsity=0, beta=0):
+def autoencoder_single_pass(X, W1, W2, b1, b2, lmbda=0, sparsity=0, beta=0):
     """
     Single hidden layer sparse autoencoder
 
@@ -140,8 +140,8 @@ def autoencoder_single_pass(X, W1, W2, b1, b2, n_hidden, n_input, lmbda=0, spars
     # (n_input, n_hidden) = (n_input, n_obs) * (n_obs, n_hidden)
     gradW2 = gradW2 + np.dot(d3, A2.T)
     gradW1 = gradW1 + np.dot(d2, X.T)
-    gradb2 = d3
-    gradb1 = d2
+    gradb2 = d3.sum(1).reshape(b2.shape)
+    gradb1 = d2.sum(1).reshape(b1.shape)
 
     return cost, (gradW1, gradW2, gradb1, gradb2)
 
@@ -153,7 +153,8 @@ def cost_func(y, y_pred, W1, W2, lmbda=0):
     assert y.shape == y.shape, "Ndarrays are not of the same shape: {} and {}".format(y.shape, y.shape)
     err = np.sum((y_pred - y) ** 2) / y.shape[1]
     # Weight decay
-    reg = (lmbda / 2) * np.sum(W1 ** 2) + np.sum(W2 ** 2)
+    reg = (lmbda / 2) * (np.sum(W1 ** 2) + np.sum(W2 ** 2))
+    # print "Err: {}, Reg: {}".format(err, reg)
     return err + reg
 
 
