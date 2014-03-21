@@ -65,7 +65,7 @@ def show_network(images, side_length, sample=1):
     pyplot.show()
 
 
-def initialize_parameters(n_hidden, n_input):
+def initialize_parameters(n_input, n_hidden):
     r = math.sqrt(6) / math.sqrt(n_hidden + n_input + 1)
     # Not sure if this is the right random number generator
     W1 = np.random.random(n_hidden * n_input).reshape((n_hidden, n_input)) * 2 * r - r
@@ -88,6 +88,7 @@ def sigmoid(x):
 
 def sigmoid_p(x):
     return np.multiply(x, (1 - x))
+
 
 def autoencoder_single_pass(X, W1, W2, b1, b2, n_hidden, n_input, lmbda=0, sparsity=0, beta=0):
     """
@@ -142,7 +143,7 @@ def autoencoder_single_pass(X, W1, W2, b1, b2, n_hidden, n_input, lmbda=0, spars
     gradb2 = d3
     gradb1 = d2
 
-    return cost, gradW1, gradW2, gradb1, gradb2
+    return cost, (gradW1, gradW2, gradb1, gradb2)
 
 
 def cost_func(y, y_pred, W1, W2, lmbda=0):
@@ -155,3 +156,45 @@ def cost_func(y, y_pred, W1, W2, lmbda=0):
     reg = (lmbda / 2) * np.sum(W1 ** 2) + np.sum(W2 ** 2)
     return err + reg
 
+
+def compute_numerical_gradient(func, params):
+    # General idea seems to be that we want to perturb every single element of each parameter by a small
+    # amount, subtract from the original, then check against
+    #
+    # Expects func to return in the form of value, (gradient elements)
+    pert = 1e-4
+    outputs = [np.zeros(p.shape) for p in params]
+    perturbs = [np.zeros(p.shape) for p in params]
+    for ip, p in enumerate(params):
+        for ie, e in enumerate(np.nditer(p)):
+            perturbs[ip].flat[ie] = pert
+            args = [a + perturbs[ia] for ia, a in enumerate(params)]
+            val1, grad1 = func(*args)
+
+            args = [a - perturbs[ia] for ia, a in enumerate(params)]
+            val2, grad2 = func(*args)
+            outputs[ip].flat[ie] = (val1 - val2) / (2 * pert)
+
+    return outputs
+
+
+def check_gradient():
+    x = np.array([4, 10])
+    val, grad = simple_quadratic(x)
+    numerical_grad = compute_numerical_gradient(simple_quadratic, [x])
+    print "Gradient"
+    print grad
+    print "Numerical gradient"
+    print numerical_grad
+
+    diff = np.linalg.norm(numerical_grad - grad) / np.linalg.norm(numerical_grad + grad)
+    print "Norm of differences.  Should be less than 2.1452e-12"
+    print diff
+
+
+def simple_quadratic(x):
+    val = (x[0] ** 2) + (3 * x[0] * x[1])
+    grad = np.zeros((2, ))
+    grad[0] = (2 * x[0]) + (3 * x[1])
+    grad[1] = 3 * x[0]
+    return val, grad
