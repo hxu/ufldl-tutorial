@@ -113,13 +113,13 @@ def autoencoder_single_pass(X, W1, W2, b1, b2, n_hidden, n_input, lmbda=0, spars
 
     # Z2 is the inputs into the second layer
     # (n_hidden, n_obs) = (n_hidden, n_obs) + (n_hidden, 1), b1 will project
-    Z2 = (W1 * X) + b1
+    Z2 = np.dot(W1, X) + b1
     # A2 is the activation from the second layer
     # (n_hidden, n_obs)
     A2 = sigmoid(Z2)
     # Z3 is inputs into the third layer
     # (n_input, n_obs)
-    Z3 = (W2 * A2) + b2
+    Z3 = np.dot(W2, A2) + b2
 
     # y_pred is the same shape as in put data
     # (n_input, n_obs)
@@ -135,11 +135,11 @@ def autoencoder_single_pass(X, W1, W2, b1, b2, n_hidden, n_input, lmbda=0, spars
     # (n_input, n_obs) = (n_input, n_obs) .* (n_input, n_obs)
     d3 = np.multiply(-(X - y_pred), sigmoid_p(Z3))
     # (n_hidden, n_obs) = (n_hidden, n_input) * (n_input, n_obs) .* (n_hidden, n_obs)
-    d2 = np.multiply(W2.T * d3, sigmoid_p(Z2))
+    d2 = np.multiply(np.dot(W2.T, d3), sigmoid_p(Z2))
 
     # (n_input, n_hidden) = (n_input, n_obs) * (n_obs, n_hidden)
-    gradW2 = gradW2 + d3 * A2.T
-    gradW1 = gradW1 + d2 * X.T
+    gradW2 = gradW2 + np.dot(d3, A2.T)
+    gradW1 = gradW1 + np.dot(d2, X.T)
     gradb2 = d3
     gradb1 = d2
 
@@ -192,6 +192,23 @@ def check_gradient():
 
     diff = np.linalg.norm(numerical_grad - grad) / np.linalg.norm(numerical_grad + grad)
     print "Norm of differences.  Should be less than 2.1452e-12"
+    print diff
+
+
+def check_gradient2():
+    patches = generate_patches(get_raw_images())[:, 0].reshape((64, 1))
+    W1, W2, b1, b2 = initialize_parameters(N_INPUT, N_HIDDEN)
+    cost, grad = autoencoder_single_pass(patches, W1, W2, b1, b2, N_HIDDEN, N_INPUT)
+
+    def wrapper(W1, W2, b1, b2):
+        return autoencoder_single_pass(patches, W1, W2, b1, b2, N_HIDDEN, N_INPUT)
+
+    num_grad = compute_numerical_gradient(wrapper, [W1, W2, b1, b2])
+
+    grad = np.concatenate([xx.flatten() for xx in grad])
+    num_grad = np.concatenate([xx.flatten() for xx in num_grad])
+    diff = np.linalg.norm(num_grad - grad) / np.linalg.norm(num_grad + grad)
+    print "Norm of differences.  Should be less than 1e-9"
     print diff
 
 
