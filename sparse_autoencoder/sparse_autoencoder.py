@@ -87,7 +87,8 @@ def sigmoid(x):
 
 
 def sigmoid_p(x):
-    return np.multiply(x, (1 - x))
+    sig = sigmoid(x)
+    return np.multiply(sig, (1 - sig))
 
 
 def autoencoder_single_pass(X, W1, W2, b1, b2, lmbda=0, sparsity=0, beta=0):
