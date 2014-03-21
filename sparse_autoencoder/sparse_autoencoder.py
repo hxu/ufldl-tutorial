@@ -163,8 +163,8 @@ def compute_numerical_gradient(func, params):
     #
     # Expects func to return in the form of value, (gradient elements)
     pert = 1e-4
-    outputs = [np.zeros(p.shape) for p in params]
-    perturbs = [np.zeros(p.shape) for p in params]
+    outputs = [np.zeros(p.shape, dtype=np.float64) for p in params]
+    perturbs = [np.zeros(p.shape, dtype=np.float64) for p in params]
     for ip, p in enumerate(params):
         for ie, e in enumerate(np.nditer(p)):
             perturbs[ip].flat[ie] = pert
@@ -174,6 +174,7 @@ def compute_numerical_gradient(func, params):
             args = [a - perturbs[ia] for ia, a in enumerate(params)]
             val2, grad2 = func(*args)
             outputs[ip].flat[ie] = (val1 - val2) / (2 * pert)
+            perturbs[ip].flat[ie] = 0
 
     return outputs
 
@@ -181,7 +182,9 @@ def compute_numerical_gradient(func, params):
 def check_gradient():
     x = np.array([4, 10])
     val, grad = simple_quadratic(x)
+    grad = np.concatenate([xx.flatten() for xx in grad])
     numerical_grad = compute_numerical_gradient(simple_quadratic, [x])
+    numerical_grad = np.concatenate([xx.flatten() for xx in numerical_grad])
     print "Gradient"
     print grad
     print "Numerical gradient"
@@ -197,4 +200,4 @@ def simple_quadratic(x):
     grad = np.zeros((2, ))
     grad[0] = (2 * x[0]) + (3 * x[1])
     grad[1] = 3 * x[0]
-    return val, grad
+    return val, (grad, )
