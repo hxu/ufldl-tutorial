@@ -21,13 +21,13 @@ numgrad = zeros(size(theta));
 pert = 1e-4;
 perturbs = zeros(size(theta));
 
-for i=1:numel(theta)
+for i=1:numel(theta),
     perturbs(i) = pert;
     val1 = J(theta + perturbs);
     val2 = J(theta - perturbs);
     numgrad(i) = (val1 - val2) / (2 * pert);
     perturbs(i) = 0;
-end
+end;
 
 
 
