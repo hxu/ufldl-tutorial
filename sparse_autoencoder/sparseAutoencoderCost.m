@@ -55,14 +55,13 @@ rho_hat = sum(A2, 2) / m;
 sparsity_penalty = beta * kl(sparsityParam, rho_hat);
 cost = cost_func(data, h, W1, W2, lambda) + sparsity_penalty;
 
-d3 = (h - data) .* sigmoid_p(Z3);
+d3 = (h - data) .* (h .* (1-h));
 d2_penalty = kl_delta(sparsityParam, rho_hat);
-d2 = ((W2' * d3) + beta * repmat(d2_penalty, 1, m)).* sigmoid_p(Z2);
+d2 = ((W2' * d3) + beta * repmat(d2_penalty, 1, m)).* A2 .* (1 - A2);
 
-W2grad = lambda * W2grad + (d3 * A2') / m;
-W1grad = lambda * W1grad + (d2 * data') / m;
-b2grad = sum(d3, 2) / m;
-b1grad = sum(d2, 2) / m;
+W2grad = lambda * W2 + (d3 * A2') / m;
+W1grad = lambda * W1 + (d2 * data') / m;
+
 
 %-------------------------------------------------------------------
 % After computing the cost and gradient, we will convert the gradients back

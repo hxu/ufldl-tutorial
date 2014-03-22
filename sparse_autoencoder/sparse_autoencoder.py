@@ -172,8 +172,8 @@ def autoencoder_single_pass(X, W1, W2, b1, b2, lmbda=0, sparsity=0, beta=0):
     d2 = (np.dot(W2.T, d3) + beta * d2_penalty) * sigmoid_p(Z2)
 
     # (n_input, n_hidden) = (n_input, n_obs) * (n_obs, n_hidden)
-    gradW2 = lmbda * gradW2 + np.dot(d3, A2.T) / n_obs
-    gradW1 = lmbda * gradW1 + np.dot(d2, X.T) / n_obs
+    gradW2 = lmbda * W2 + np.dot(d3, A2.T) / n_obs
+    gradW1 = lmbda * W1 + np.dot(d2, X.T) / n_obs
     gradb2 = d3.sum(1).reshape(b2.shape) / n_obs
     gradb1 = d2.sum(1).reshape(b1.shape) / n_obs
 
