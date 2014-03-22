@@ -275,9 +275,10 @@ def train():
     unroller = Unroller(W1, W2, b1, b2)
 
     def obj_func(theta):
+        print "Call"
         W1, W2, b1, b2 = unroller.roll(theta)
         cost, grad = autoencoder_single_pass(patches, W1, W2, b1, b2, LMBDA, SPARSITY, BETA)
-        return cost, unroller.flatten(grad)
+        return cost, unroller.flatten(*grad)
 
     res = minimize(obj_func, unroller.flatten(), method='BFGS', jac=True, options={'maxiter': 400, 'disp':True})
 
