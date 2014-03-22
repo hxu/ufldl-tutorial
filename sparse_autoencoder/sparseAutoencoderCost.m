@@ -44,29 +44,16 @@ b2grad = zeros(size(b2));
 
 n_obs = size(data)(2);
 m = n_obs;
-A2 = zeros(hiddenSize, n_obs);
-Z2 = zeros(hiddenSize, n_obs);
-Z3 = zeros(visibleSize, n_obs);
-h = zeros(visibleSize, n_obs);
 
-for i=1:n_obs
-  z2 = W1 * data(:,i) + b1;
-  Z2(:, i) = z2;
-  a2 = sigmoid(z2);
-  A2(:, i) = a2;
-  z3 = W2 * a2 + b2;
-  Z3(:, i) = z3;
-  h(:,i) = sigmoid(z3);
-end;
-
-%{
 Z2 = (W1 * data) + repmat(b1, 1, n_obs);
 A2 = sigmoid(Z2);
 Z3 = (W2 * A2) + repmat(b2, 1, n_obs);
 h = sigmoid(Z3);
-%}
 
-cost = cost_func(data, h, W1, W2, lambda);
+rho_hat = sum(A2, 2) / m;
+
+sparsity_penalty = beta * kl(sparsityParam, rho_hat);
+cost = cost_func(data, h, W1, W2, lambda) + sparsity_penalty;
 
 %{
 for i=1:n_obs,
@@ -80,30 +67,14 @@ for i=1:n_obs,
 end;
 %}
 
-%{
-d3 = (-(data - h)) .* sigmoid_p(Z3);
-d2 = (W2' * d3) .* sigmoid_p(Z2);
+d3 = (h - data) .* sigmoid_p(Z3);
+d2_penalty = kl_delta(sparsityParam, rho_hat);
+d2 = ((W2' * d3) + beta * repmat(d2_penalty, 1, m)).* sigmoid_p(Z2);
 
-W2grad = W2grad + (d3 * A2');
-W1grad = W1grad + (d2 * data');
-b2grad = reshape(sum(d3, 2), size(b2)(1), size(b2)(2));
-b1grad = reshape(sum(d2, 2), size(b1)(1), size(b1)(2));
-%}
-
-rho_hat = sum(A2, 2) / m;
-
-delta_3 = -(data - h) .*  sigmoid_p(h);   % 64 10000
-
-d2_simple = W2' * delta_3;   % 25 10000
-d2_pen = kl_delta(sparsityParam, rho_hat);
-
-delta_2 = (d2_simple + beta * repmat(d2_pen,1, m)) .* sigmoid_p(A2);
-
-b2grad = sum(delta_3, 2)/m;
-b1grad = sum(delta_2, 2)/m;
-
-W2grad = delta_3 * A2'/m  + lambda * W2; % 25 64
-W1grad = delta_2 * data'/m + lambda * W1; % 25 64
+W2grad = lambda * W2grad + (d3 * A2') / m;
+W1grad = lambda * W1grad + (d2 * data') / m;
+b2grad = sum(d3, 2) / m;
+b1grad = sum(d2, 2) / m;
 
 %-------------------------------------------------------------------
 % After computing the cost and gradient, we will convert the gradients back
@@ -131,9 +102,13 @@ function sigmp = sigmoid_p(x)
 end
 
 function cost = cost_func(y, y_pred, W1, W2, lambda)
-    err = sum(((y_pred - y) .** 2)(:)) / size(y)(2);
+    err = sum(((y_pred - y) .** 2)(:)) / (2 * size(y)(2));
     reg = (lambda / 2) * (sum((W1 .** 2)(:)) + sum((W2 .** 2)(:)));
     cost = err + reg;
+end
+
+function ans = kl(r, rh)
+  ans = sum(r .* log(r ./ rh) + (1-r) .* log( (1-r) ./ (1-rh)));
 end
 
 function ans = kl_delta(r, rh)
