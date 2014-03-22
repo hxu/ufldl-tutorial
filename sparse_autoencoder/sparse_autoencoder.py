@@ -3,7 +3,9 @@ import math
 from matplotlib.colors import Normalize
 import numpy as np
 import scipy.io
-from matplotlib import pyplot
+from matplotlib import pyplot, cm
+from operator import mul
+from scipy.optimize import minimize
 
 
 N_INPUT = 8 * 8
@@ -46,7 +48,7 @@ def show_network(images, side_length, sample=1):
     rows = math.ceil(n_images / cols)
     # padding
     image_size = side_length + 1
-    output = np.ones((image_size * rows, image_size * cols))
+    output = np.zeros((image_size * rows, image_size * cols))
     image_mask = np.random.randint(0, images.shape[1], n_images)
     norm = Normalize()
     for i, img in enumerate(image_mask):
@@ -62,6 +64,7 @@ def show_network(images, side_length, sample=1):
         output[offset_row:offset_row_end, offset_col:offset_col_end] = this_image
 
     pyplot.imshow(output)
+    pyplot.set_cmap(cm.gray)
     pyplot.show()
 
 
@@ -77,9 +80,33 @@ def initialize_parameters(n_input, n_hidden):
     return W1, W2, b1, b2
 
 
-def unroll(W1, W2, b1, b2):
-    # theta = [W1(:) ; W2(:) ; b1(:) ; b2(:)];
-    pass
+class Unroller(object):
+    """
+    Unrolls an array of ndarrays into a single ndarray.
+    Stores the shapes so that the ndarray can be re-rolled into the array of ndarrays
+    """
+    def __init__(self, *args):
+        self.shapes = [xx.shape for xx in args]
+        self.args = args
+        self.total_elems = sum([xx.size for xx in self.args])
+
+    def flatten(self, *args):
+        if not args:
+            return np.concatenate([xx.flatten() for xx in self.args])
+        else:
+            return np.concatenate([xx.flatten() for xx in args])
+
+    def roll(self, arg):
+        assert arg.size == self.total_elems, "Expected array of {} elements".format(self.total_elems)
+        pointer = 0
+        res = []
+        for s in self.shapes:
+            count = reduce(mul, s)
+            this_res = arg[pointer:pointer+count].reshape(s)
+            res.append(this_res)
+            pointer = pointer + count
+
+        return res
 
 
 def sigmoid(x):
@@ -240,3 +267,18 @@ def simple_quadratic(x):
     grad[0] = (2 * x[0]) + (3 * x[1])
     grad[1] = 3 * x[0]
     return val, (grad, )
+
+
+def train():
+    patches = generate_patches(get_raw_images())
+    W1, W2, b1, b2 = initialize_parameters(N_INPUT, N_HIDDEN)
+    unroller = Unroller(W1, W2, b1, b2)
+
+    def obj_func(theta):
+        W1, W2, b1, b2 = unroller.roll(theta)
+        cost, grad = autoencoder_single_pass(patches, W1, W2, b1, b2, LMBDA, SPARSITY, BETA)
+        return cost, unroller.flatten(grad)
+
+    res = minimize(obj_func, unroller.flatten(), method='BFGS', jac=True, options={'maxiter': 400, 'disp':True})
+
+    W1, W2, b1, b2 = unroller.roll(res['x'])
