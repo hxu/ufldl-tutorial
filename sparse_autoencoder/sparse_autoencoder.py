@@ -88,7 +88,7 @@ def sigmoid(x):
 
 def sigmoid_p(x):
     sig = sigmoid(x)
-    return np.multiply(sig, (1 - sig))
+    return sig * (1 - sig)
 
 
 def autoencoder_single_pass(X, W1, W2, b1, b2, lmbda=0, sparsity=0, beta=0):
@@ -111,6 +111,7 @@ def autoencoder_single_pass(X, W1, W2, b1, b2, lmbda=0, sparsity=0, beta=0):
     b2: ndarray, shape (n_input, 1)
     """
     # Forward propagation
+    n_obs = X.shape[1]
 
     # Z2 is the inputs into the second layer
     # (n_hidden, n_obs) = (n_hidden, n_obs) + (n_hidden, 1), b1 will project
@@ -122,10 +123,13 @@ def autoencoder_single_pass(X, W1, W2, b1, b2, lmbda=0, sparsity=0, beta=0):
     # (n_input, n_obs)
     Z3 = np.dot(W2, A2) + b2
 
+    rho_hat = A2.sum(1) / n_obs
+
     # y_pred is the same shape as in put data
     # (n_input, n_obs)
     y_pred = sigmoid(Z3)
-    cost = cost_func(X, y_pred, W1, W2, lmbda)
+    sparsity_penalty = beta * kl(sparsity, rho_hat)
+    cost = cost_func(X, y_pred, W1, W2, lmbda) + sparsity_penalty
 
     # Back propagation
     # initialize gradients
@@ -134,15 +138,17 @@ def autoencoder_single_pass(X, W1, W2, b1, b2, lmbda=0, sparsity=0, beta=0):
 
     # d3 is the error in the third layer
     # (n_input, n_obs) = (n_input, n_obs) .* (n_input, n_obs)
-    d3 = np.multiply(-(X - y_pred), sigmoid_p(Z3))
+    d3 = (y_pred - X) * sigmoid_p(Z3)
+    #
+    d2_penalty = kl_delta(sparsity, rho_hat).reshape(rho_hat.shape[0], 1)
     # (n_hidden, n_obs) = (n_hidden, n_input) * (n_input, n_obs) .* (n_hidden, n_obs)
-    d2 = np.multiply(np.dot(W2.T, d3), sigmoid_p(Z2))
+    d2 = (np.dot(W2.T, d3) + beta * d2_penalty) * sigmoid_p(Z2)
 
     # (n_input, n_hidden) = (n_input, n_obs) * (n_obs, n_hidden)
-    gradW2 = gradW2 + np.dot(d3, A2.T)
-    gradW1 = gradW1 + np.dot(d2, X.T)
-    gradb2 = d3.sum(1).reshape(b2.shape)
-    gradb1 = d2.sum(1).reshape(b1.shape)
+    gradW2 = lmbda * gradW2 + np.dot(d3, A2.T) / n_obs
+    gradW1 = lmbda * gradW1 + np.dot(d2, X.T) / n_obs
+    gradb2 = d3.sum(1).reshape(b2.shape) / n_obs
+    gradb1 = d2.sum(1).reshape(b1.shape) / n_obs
 
     return cost, (gradW1, gradW2, gradb1, gradb2)
 
@@ -152,11 +158,25 @@ def cost_func(y, y_pred, W1, W2, lmbda=0):
     Assumes y is in the shape of (n_preds, n_obs)
     """
     assert y.shape == y.shape, "Ndarrays are not of the same shape: {} and {}".format(y.shape, y.shape)
-    err = np.sum((y_pred - y) ** 2) / y.shape[1]
+    err = np.sum((y_pred - y) ** 2) / (2 * y.shape[1])
     # Weight decay
     reg = (lmbda / 2) * (np.sum(W1 ** 2) + np.sum(W2 ** 2))
     # print "Err: {}, Reg: {}".format(err, reg)
     return err + reg
+
+
+def kl(r, rh):
+    if r == 0:
+        return np.zeros(rh.shape)
+    else:
+        return np.sum(r * np.log(r / rh) + (1 - r) * np.log((1-r) / (1 - rh)))
+
+
+def kl_delta(r, rh):
+    if r == 0:
+        return np.zeros(rh.shape)
+    else:
+        return -(r / rh) + (1 - r) / (1 - rh)
 
 
 def compute_numerical_gradient(func, params):
@@ -200,10 +220,10 @@ def check_gradient():
 def check_gradient2():
     patches = generate_patches(get_raw_images())[:, 0].reshape((64, 1))
     W1, W2, b1, b2 = initialize_parameters(N_INPUT, N_HIDDEN)
-    cost, grad = autoencoder_single_pass(patches, W1, W2, b1, b2, N_HIDDEN, N_INPUT)
+    cost, grad = autoencoder_single_pass(patches, W1, W2, b1, b2, LMBDA, SPARSITY, BETA)
 
     def wrapper(W1, W2, b1, b2):
-        return autoencoder_single_pass(patches, W1, W2, b1, b2, N_HIDDEN, N_INPUT)
+        return autoencoder_single_pass(patches, W1, W2, b1, b2, LMBDA, SPARSITY, BETA)
 
     num_grad = compute_numerical_gradient(wrapper, [W1, W2, b1, b2])
 

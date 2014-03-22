@@ -55,18 +55,6 @@ rho_hat = sum(A2, 2) / m;
 sparsity_penalty = beta * kl(sparsityParam, rho_hat);
 cost = cost_func(data, h, W1, W2, lambda) + sparsity_penalty;
 
-%{
-for i=1:n_obs,
-  delta3 = -(data(:,i) - h(:,i)) .* sigmoid_p(Z3(:,i));
-  delta2 = W2'*delta3 .* sigmoid_p(Z2(:,i));
-
-  W2grad = W2grad + delta3*A2(:,i)' / n_obs;
-  W1grad = W1grad + delta2*data(:,i)' / n_obs;
-  b2grad = b2grad + delta3 / n_obs;
-  b1grad = b1grad + delta2 / n_obs;
-end;
-%}
-
 d3 = (h - data) .* sigmoid_p(Z3);
 d2_penalty = kl_delta(sparsityParam, rho_hat);
 d2 = ((W2' * d3) + beta * repmat(d2_penalty, 1, m)).* sigmoid_p(Z2);
