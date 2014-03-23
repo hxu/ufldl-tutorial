@@ -112,8 +112,8 @@ softmaxModel = softmaxTrain(inputSize, numClasses, lambda, ...
 %  (in softmaxPredict.m), which should return predictions
 %  given a softmax model and the input data.
 
-images = loadMNISTImages('mnist/t10k-images-idx3-ubyte');
-labels = loadMNISTLabels('mnist/t10k-labels-idx1-ubyte');
+images = loadMNISTImages('../mnist/t10k-images-idx3-ubyte');
+labels = loadMNISTLabels('../mnist/t10k-labels-idx1-ubyte');
 labels(labels==0) = 10; % Remap 0 to 10
 
 inputData = images;

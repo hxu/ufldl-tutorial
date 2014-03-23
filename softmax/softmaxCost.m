@@ -33,6 +33,7 @@ exponent = theta * data;
 exponent = exp(bsxfun(@minus, exponent, max(exponent, [], 1)));
 denominator = sum(exponent, 1);
 
+% 10, 60000
 h = bsxfun(@rdivide, exponent, denominator);
 
 cost = (sum((groundTruth .* log(h))(:)) * (-1 / numCases)) + (lambda / 2 * sum(theta(:) .** 2));
